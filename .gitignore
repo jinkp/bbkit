@@ -1,9 +1,6 @@
-# Dependencies
-node_modules/
-
 # Build output
 dist/
-*.tsbuildinfo
+bin/
 
 # Test coverage
 coverage/
@@ -11,7 +8,9 @@ coverage/
 # Environment
 .env
 *.env.local
-.npmrc
+
+# Dependencies (legacy)
+node_modules/
 
 # OS
 .DS_Store
@@ -25,8 +24,3 @@ Thumbs.db
 
 # Logs
 *.log
-npm-debug.log*
-pnpm-debug.log*
-
-# npm (project uses pnpm)
-package-lock.json

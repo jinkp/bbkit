@@ -1,14 +1,25 @@
-[![CI](https://img.shields.io/badge/CI-GitHub_Actions-blue)](./.github/workflows/ci.yml) [![npm version](https://img.shields.io/npm/v/bbkit-cli)](https://www.npmjs.com/package/bbkit-cli) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+[![CI](https://img.shields.io/badge/CI-GitHub_Actions-blue)](./.github/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-# bbkit-cli
+# bbkit
 
 Modern command-line workflows for Bitbucket Cloud.
 
 ## Installation
 
-```bash
-npm install -g bbkit-cli
+**Requirements**: None — bbkit ships as a single static binary.
+
+### Windows (PowerShell)
+```powershell
+irm https://raw.githubusercontent.com/jinkp/bbkit/main/install.ps1 | iex
 ```
+
+### Linux / macOS
+```bash
+curl -fsSL https://raw.githubusercontent.com/jinkp/bbkit/main/install.sh | sh
+```
+
+### Manual
+Download the binary for your platform from [GitHub Releases](https://github.com/jinkp/bbkit/releases), add it to your PATH, and run `bbk setup`.
 
 ## Quick start
 
@@ -16,7 +27,7 @@ npm install -g bbkit-cli
 bbk auth login
 bbk --version
 bbk repo list --workspace myworkspace
-bbk pr create --workspace myworkspace --repo my-repo --source feature/my-change --target main --title "Add my change"
+bbk pr create --workspace myworkspace --repo my-repo --source feature/my-change --destination main --title "Add my change"
 bbk pr view 123
 bbk pr status 123
 bbk pr commits 123
@@ -40,14 +51,14 @@ bbk pr decline 123 --reason "Faltan pruebas"
 
 | Command | Description | Flags |
 |---|---|---|
-| `bbk --version` / `bbk -V` | Print the installed CLI version. | None |
+| `bbk --version` / `bbk -v` | Print the installed CLI version. | None |
 | `bbk version` | Print the installed CLI version, with optional runtime details. | `--json` |
 | `bbk auth login` | Authenticate with Bitbucket Cloud using an API token. | None |
 | `bbk auth status` | Show the current authentication state. | None |
 | `bbk auth logout` | Remove stored credentials. | None |
 | `bbk repo list` | List repositories for a workspace. | `--workspace <name>`, `--json` |
-| `bbk pr list` | List pull requests. Defaults to open PRs and supports server-side filters. | `--repo <slug>`, `--workspace <name>`, `--json`, `--state <state>`, `--all`, `--author <uuid>`, `--reviewer <uuid>`, `--source <branch>`, `--target <branch>` |
-| `bbk pr create` | Create a pull request. | `--source <branch>` (required), `--target <branch>` (required), `--title <title>` (required), `--draft`, `--repo <slug>`, `--workspace <name>` |
+| `bbk pr list` | List pull requests. Defaults to open PRs and supports server-side filters. | `--state <state>` (repeatable), `--all`, `--author <uuid>`, `--reviewer <uuid>`, `--source <branch>`, `--target <branch>`, `--query`, `--limit`, `--repo <slug>`, `--workspace <name>`, `--json` |
+| `bbk pr create` | Create a pull request. | `--title <title>` (required), `--source <branch>` (required), `--destination <branch>` (required), `--description`, `--reviewers`, `--close-source-branch`, `--repo <slug>`, `--workspace <name>`, `--json` |
 | `bbk pr view <id>` | Show pull request metadata, branches, author, reviewers, participants, and URL. | `--repo <slug>`, `--workspace <name>`, `--json` |
 | `bbk pr status <id>` | Show a compact PR metadata summary: state, draft/queued flags, counts, and approvals. | `--repo <slug>`, `--workspace <name>`, `--json` |
 | `bbk pr commits <id>` | List commits associated with a pull request. | `--repo <slug>`, `--workspace <name>`, `--json` |
@@ -64,17 +75,18 @@ bbk pr decline 123 --reason "Faltan pruebas"
 | `bbk pr files <id>` | List files changed in a pull request. | `--repo <slug>`, `--workspace <name>`, `--json` |
 | `bbk pr diff <id>` | Show the raw unified diff for a pull request. | `--repo <slug>`, `--workspace <name>` |
 | `bbk pr merge <id>` | Merge a pull request after confirmation. | `--yes`, `--strategy <strategy>`, `--message <text>`, `--repo <slug>`, `--workspace <name>` |
-| `bbk pr decline <id>` | Post the reason as a pull request comment, then decline the pull request. | `--reason <text>` (required), `--repo <slug>`, `--workspace <name>` |
+| `bbk pr update <id>` | Update a pull request title, description, target branch, or reviewers. | `--title`, `--description`, `--description-file`, `--target`, `--reviewers`, `--repo <slug>`, `--workspace <name>`, `--json` |
+| `bbk pr decline <id>` | Post the reason as a comment, then decline the pull request. | `--reason <text>`, `--repo <slug>`, `--workspace <name>` |
 | `bbk branch list` | List repository branches. | `--repo <slug>`, `--workspace <name>`, `--json` |
-| `bbk branch stale` | List branches older than a given age. | `--days <n>` (required), `--repo <slug>`, `--workspace <name>`, `--json` |
+| `bbk branch stale` | List branches older than a given age. | `--days <n>` (default 30), `--repo <slug>`, `--workspace <name>`, `--json` |
 | `bbk pipeline list` | List recent pipelines. | `--branch <name>`, `--repo <slug>`, `--workspace <name>`, `--json` |
 | `bbk pipeline run` | Run a pipeline for a branch. | `--branch <name>` (required), `--repo <slug>`, `--workspace <name>` |
 
-Use `bbk --help` or `bbk <command> --help` for the generated Commander help output.
+Use `bbk --help` or `bbk <command> --help` for full usage details.
 
 ## Authentication
 
-`bbk auth login` prompts for a Bitbucket username and API token, validates them against the Bitbucket `/user` endpoint, and stores them in the OS keychain when supported.
+`bbk auth login` prompts for your Atlassian email and a Bitbucket API token, validates them against the Bitbucket `/user` endpoint, and stores them in the OS keychain when supported.
 
 For CI or other non-interactive environments, set environment variables instead:
 
