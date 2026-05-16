@@ -15,14 +15,21 @@ function Fail-Install {
 }
 
 try {
-    if (-not [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
+    if ($env:OS -ne "Windows_NT") {
         Fail-Install "This installer only supports Windows."
     }
 
-    $arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
-        ([System.Runtime.InteropServices.Architecture]::X64) { "amd64" }
-        ([System.Runtime.InteropServices.Architecture]::Arm64) { "arm64" }
-        default { Fail-Install "Unsupported architecture: $([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)" }
+    $arch = $null
+    if ([System.Environment]::Is64BitOperatingSystem) {
+        $cpuArch = $env:PROCESSOR_ARCHITECTURE
+        if ($cpuArch -eq "ARM64") {
+            $arch = "arm64"
+        } else {
+            $arch = "amd64"
+        }
+    }
+    if (-not $arch) {
+        Fail-Install "Unsupported architecture: $env:PROCESSOR_ARCHITECTURE"
     }
 
     $assetName = "bbk-windows-$arch.exe"
