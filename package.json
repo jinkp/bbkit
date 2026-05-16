@@ -50,6 +50,7 @@
   "bugs": {
     "url": "https://github.com/jinkp/bbkit/issues"
   },
+  "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=20.0.0"
   },
