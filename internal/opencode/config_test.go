@@ -90,8 +90,8 @@ func TestSaveMissingFileCreatesFile(t *testing.T) {
 	var entry bbkitEntry
 	require.NoError(t, json.Unmarshal(mcpMap["bbkit"], &entry))
 	require.Equal(t, "local", entry.Type)
-	require.Equal(t, "bbk", entry.Command)
-	require.Equal(t, []string{"mcp"}, entry.Args)
+	require.Equal(t, []string{"bbk", "mcp"}, entry.Command)
+	require.True(t, entry.Enabled)
 }
 
 func TestSavePreservesExistingKeys(t *testing.T) {
@@ -165,7 +165,7 @@ func TestSaveCreatesParentDirectories(t *testing.T) {
 	require.NoError(t, err)
 
 	// Manually exercise the same logic Save uses for parent dir creation
-	entry := bbkitEntry{Type: "local", Command: "bbk", Args: []string{"mcp"}}
+	entry := bbkitEntry{Type: "local", Command: []string{"bbk", "mcp"}, Enabled: true}
 	entryBytes, err := json.Marshal(entry)
 	require.NoError(t, err)
 	mcpMap := map[string]json.RawMessage{"bbkit": json.RawMessage(entryBytes)}

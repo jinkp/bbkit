@@ -19,10 +19,11 @@ const (
 )
 
 // bbkitEntry is the MCP server descriptor written into opencode.json.
+// OpenCode requires command as an array and an explicit enabled flag.
 type bbkitEntry struct {
 	Type    string   `json:"type"`
-	Command string   `json:"command"`
-	Args    []string `json:"args"`
+	Command []string `json:"command"`
+	Enabled bool     `json:"enabled"`
 }
 
 // GlobalPath returns the path to the global opencode.json file.
@@ -79,7 +80,7 @@ func Load(path string) (map[string]json.RawMessage, error) {
 	return m, nil
 }
 
-// Save merges {"mcp":{"bbkit":{"type":"local","command":"bbk","args":["mcp"]}}}
+// Save merges {"mcp":{"bbkit":{"type":"local","command":["bbk","mcp"],"enabled":true}}}
 // into the opencode.json file at the path determined by scope, preserving all other keys.
 // Creates the file and its parent directory if missing.
 func Save(scope Scope) error {
@@ -94,11 +95,11 @@ func Save(scope Scope) error {
 		return err
 	}
 
-	// Build the bbkit entry
+	// Build the bbkit entry — OpenCode requires command as array and enabled flag
 	entry := bbkitEntry{
 		Type:    "local",
-		Command: "bbk",
-		Args:    []string{"mcp"},
+		Command: []string{"bbk", "mcp"},
+		Enabled: true,
 	}
 
 	// Unmarshal the existing mcp map (if present), then set the bbkit key
