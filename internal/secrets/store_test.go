@@ -42,6 +42,11 @@ func TestEncryptionRoundTripUsesAES256GCM(t *testing.T) {
 	path := setSecretsConfigHome(t)
 	stubKeyring(t)
 
+	// deriveKey uses os.Hostname and user.Current — skip if unavailable (e.g. CI containers)
+	if _, err := deriveKey(); err != nil {
+		t.Skipf("skipping: deriveKey unavailable in this environment: %v", err)
+	}
+
 	creds := Credentials{Username: "testuser", APIToken: "secret123"}
 	require.NoError(t, Save(creds))
 
