@@ -35,6 +35,7 @@ var menuItems = []MenuItem{
 	{Label: "Branch List", Description: "List branches", Command: "branch list"},
 	{Label: "Pipeline List", Description: "List recent pipelines", Command: "pipeline list"},
 	{Label: "Config", Description: "View current configuration", Command: "config list"},
+	{Label: "Setup OpenCode", Description: "Wire bbkit as MCP server in opencode.json", Command: "setup opencode"},
 }
 
 func NewMenuModel() MenuModel {

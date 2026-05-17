@@ -12,7 +12,7 @@ import (
 )
 
 func NewSetupCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Interactive setup wizard for bbkit",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,6 +56,47 @@ func NewSetupCmd() *cobra.Command {
 
 			if wizard.Done() {
 				_, _ = fmt.Fprintln(cmd.OutOrStdout(), wizard.DoneMessage())
+			}
+
+			return nil
+		},
+	}
+
+	cmd.AddCommand(newSetupOpenCodeCmd())
+	return cmd
+}
+
+// newSetupOpenCodeCmd returns the `bbk setup opencode` subcommand.
+func newSetupOpenCodeCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "opencode",
+		Short: "Wire bbkit as an MCP server in opencode.json",
+		Long:  "Launches a TUI wizard to write the bbkit MCP server entry into the global or local opencode.json.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			wizard := tui.NewOpenCodeWizardModel()
+			program := tea.NewProgram(wizard)
+
+			finalModel, err := program.Run()
+			if err != nil {
+				return err
+			}
+
+			m, ok := finalModel.(tui.OpenCodeWizardModel)
+			if !ok {
+				return &bitbucket.CLIError{Message: "Setup opencode did not complete correctly.", ExitCode: 2}
+			}
+
+			if m.Cancelled() {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Setup opencode cancelled.")
+				return nil
+			}
+
+			if m.Error() {
+				return &bitbucket.CLIError{Message: m.ErrorMessage(), ExitCode: 1}
+			}
+
+			if m.Done() {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "opencode.json updated successfully.")
 			}
 
 			return nil
