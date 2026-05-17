@@ -15,6 +15,7 @@ func NewSetupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Interactive setup wizard for bbkit",
+		// When called without a subcommand, show help listing all subcommands.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -63,6 +64,7 @@ func NewSetupCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newSetupOpenCodeCmd())
+	cmd.AddCommand(newSetupClaudeCmd())
 	return cmd
 }
 
@@ -97,6 +99,44 @@ func newSetupOpenCodeCmd() *cobra.Command {
 
 			if m.Done() {
 				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "opencode.json updated successfully.")
+			}
+
+			return nil
+		},
+	}
+}
+
+// newSetupClaudeCmd returns the `bbk setup claude` subcommand.
+func newSetupClaudeCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "claude",
+		Short: "Wire bbkit as an MCP server in Claude Code config",
+		Long:  "Launches a TUI wizard to write the bbkit MCP server entry into the global (~/.claude.json) or local (.claude/settings.json) Claude Code config.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			wizard := tui.NewClaudeWizardModel()
+			program := tea.NewProgram(wizard)
+
+			finalModel, err := program.Run()
+			if err != nil {
+				return err
+			}
+
+			m, ok := finalModel.(tui.ClaudeWizardModel)
+			if !ok {
+				return &bitbucket.CLIError{Message: "Setup claude did not complete correctly.", ExitCode: 2}
+			}
+
+			if m.Cancelled() {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Setup claude cancelled.")
+				return nil
+			}
+
+			if m.Error() {
+				return &bitbucket.CLIError{Message: m.ErrorMessage(), ExitCode: 1}
+			}
+
+			if m.Done() {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Claude Code config updated successfully.")
 			}
 
 			return nil
