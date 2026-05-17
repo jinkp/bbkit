@@ -77,6 +77,7 @@ func NewRootCmd() *cobra.Command {
 		NewBranchCmd(),
 		NewPipelineCmd(),
 		NewPRCmd(),
+		NewTUICmd(),
 	)
 
 	return cmd
