@@ -35,9 +35,22 @@ func GlobalPath() (string, error) {
 	return filepath.Join(dir, "opencode", "opencode.json"), nil
 }
 
-// LocalPath returns the path to the local opencode.json file (./opencode.json).
+// LocalPath returns the resolved local opencode.json path.
+// Lookup order:
+//  1. .opencode/opencode.json  (preferred — OpenCode project convention)
+//  2. opencode.json            (fallback for repos that use the root file)
+//
+// If neither exists, returns .opencode/opencode.json so it gets created there.
 func LocalPath() string {
-	return "opencode.json"
+	dotOpencode := filepath.Join(".opencode", "opencode.json")
+	if _, err := os.Stat(dotOpencode); err == nil {
+		return dotOpencode
+	}
+	if _, err := os.Stat("opencode.json"); err == nil {
+		return "opencode.json"
+	}
+	// Neither exists → create in .opencode/ (OpenCode convention)
+	return dotOpencode
 }
 
 // configPath returns the file path for the given scope.

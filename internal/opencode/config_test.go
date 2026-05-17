@@ -62,20 +62,22 @@ func TestLoadValidJSONReturnsMap(t *testing.T) {
 
 // --- Save tests ---
 
-func TestSaveMissingFileCreatesFile(t *testing.T) {
+func TestSaveMissingFileCreatesInDotOpencode(t *testing.T) {
 	dir := t.TempDir()
-	// Use ScopeLocal so Save writes to "opencode.json" in cwd — but since
-	// LocalPath is relative, we override by testing via a custom local path.
-	// We test Save via the exported Save(scope) by temporarily setting cwd.
 	orig, err := os.Getwd()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.Chdir(orig) })
 	require.NoError(t, os.Chdir(dir))
 
+	// Neither .opencode/opencode.json nor opencode.json exist →
+	// LocalPath() should resolve to .opencode/opencode.json
+	require.Equal(t, filepath.Join(".opencode", "opencode.json"), LocalPath())
+
 	err = Save(ScopeLocal)
 	require.NoError(t, err)
 
-	path := filepath.Join(dir, "opencode.json")
+	// File must be created inside .opencode/
+	path := filepath.Join(dir, ".opencode", "opencode.json")
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -92,6 +94,33 @@ func TestSaveMissingFileCreatesFile(t *testing.T) {
 	require.Equal(t, "local", entry.Type)
 	require.Equal(t, []string{"bbk", "mcp"}, entry.Command)
 	require.True(t, entry.Enabled)
+}
+
+func TestLocalPathPrefersDotOpencodeWhenExists(t *testing.T) {
+	dir := t.TempDir()
+	orig, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(orig) })
+	require.NoError(t, os.Chdir(dir))
+
+	// Create .opencode/opencode.json
+	require.NoError(t, os.MkdirAll(".opencode", 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(".opencode", "opencode.json"), []byte("{}"), 0o644))
+
+	require.Equal(t, filepath.Join(".opencode", "opencode.json"), LocalPath())
+}
+
+func TestLocalPathFallsBackToRootWhenOnlyRootExists(t *testing.T) {
+	dir := t.TempDir()
+	orig, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(orig) })
+	require.NoError(t, os.Chdir(dir))
+
+	// Only root opencode.json exists
+	require.NoError(t, os.WriteFile("opencode.json", []byte("{}"), 0o644))
+
+	require.Equal(t, "opencode.json", LocalPath())
 }
 
 func TestSavePreservesExistingKeys(t *testing.T) {

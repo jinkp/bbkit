@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -148,7 +147,7 @@ func (m OpenCodeWizardModel) View() string {
 }
 
 func (m OpenCodeWizardModel) viewScope() string {
-	scopes := []string{"Global (~/.config/opencode/opencode.json)", "Local (./opencode.json)"}
+	scopes := []string{"Global (~/.config/opencode/opencode.json)", "Local (.opencode/opencode.json)"}
 	lines := make([]string, len(scopes))
 	for i, s := range scopes {
 		if i == m.cursor {
@@ -177,18 +176,18 @@ func (m OpenCodeWizardModel) viewConfirm() string {
 		p, _ := opencode.GlobalPath()
 		targetPath = p
 	case opencode.ScopeLocal:
-		targetPath = opencode.LocalPath()
+		targetPath = opencode.LocalPath() // resolves .opencode/opencode.json or opencode.json
 	}
 
-	preview := fmt.Sprintf(`{
+	preview := `{
   "mcp": {
     "bbkit": {
       "type": "local",
-      "command": "bbk",
-      "args": ["mcp"]
+      "command": ["bbk", "mcp"],
+      "enabled": true
     }
   }
-}`)
+}`
 
 	body := strings.Join([]string{
 		dimStyle.Render("Target: ") + inputStyle.Render(targetPath),
