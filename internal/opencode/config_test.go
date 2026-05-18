@@ -157,8 +157,11 @@ func TestSaveMergesBBKitIntoExistingMCPSection(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chdir(orig) })
 	require.NoError(t, os.Chdir(dir))
 
-	// Write a file with an existing mcp section containing another entry
-	existing := `{"mcp":{"other-tool":{"type":"local","command":"other","args":[]}}}`
+	existing := `{
+  "mcp": {
+    "other-tool": {"type":"local","command":["other"],"enabled":true}
+  }
+}`
 	require.NoError(t, os.WriteFile("opencode.json", []byte(existing), 0o644))
 
 	err = Save(ScopeLocal)
@@ -167,6 +170,7 @@ func TestSaveMergesBBKitIntoExistingMCPSection(t *testing.T) {
 	data, err := os.ReadFile("opencode.json")
 	require.NoError(t, err)
 
+	// Parse result — must be valid JSON
 	var m map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &m))
 	require.Contains(t, m, "mcp")
@@ -174,9 +178,71 @@ func TestSaveMergesBBKitIntoExistingMCPSection(t *testing.T) {
 	var mcpMap map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(m["mcp"], &mcpMap))
 
-	// Both the existing entry and the new bbkit entry must be present
 	require.Contains(t, mcpMap, "other-tool", "pre-existing mcp entry must be preserved")
 	require.Contains(t, mcpMap, "bbkit", "bbkit entry must be added")
+}
+
+func TestSavePreservesJSONCComments(t *testing.T) {
+	dir := t.TempDir()
+	orig, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(orig) })
+	require.NoError(t, os.Chdir(dir))
+
+	// Simulate a real opencode.json with JSONC comments and existing MCPs
+	existing := `{
+  "$schema": "https://opencode.ai/config.json",
+  /*"plugin": ["./node_modules/opencode-remote-config"],*/
+  "mcp": {
+    "atlassian": {
+      "type": "remote",
+      "url": "https://mcp.atlassian.com/v1/mcp",
+      "enabled": true
+    }
+  }
+}`
+	require.NoError(t, os.WriteFile("opencode.json", []byte(existing), 0o644))
+
+	err = Save(ScopeLocal)
+	require.NoError(t, err)
+
+	data, err := os.ReadFile("opencode.json")
+	require.NoError(t, err)
+
+	text := string(data)
+
+	// Comments must be preserved
+	require.Contains(t, text, `/*"plugin"`)
+	require.Contains(t, text, `"$schema"`)
+
+	// Parse stripped version to verify both MCPs are present
+	stripped := stripJSONCComments(data)
+	var m map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(stripped, &m))
+
+	var mcpMap map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(m["mcp"], &mcpMap))
+
+	require.Contains(t, mcpMap, "atlassian", "existing atlassian entry must be preserved")
+	require.Contains(t, mcpMap, "bbkit", "bbkit entry must be added")
+}
+
+func TestSaveIsIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	orig, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(orig) })
+	require.NoError(t, os.Chdir(dir))
+
+	require.NoError(t, os.WriteFile("opencode.json", []byte(`{"mcp":{}}`), 0o644))
+
+	// Run Save twice — second call should be a no-op
+	require.NoError(t, Save(ScopeLocal))
+	first, _ := os.ReadFile("opencode.json")
+	require.NoError(t, Save(ScopeLocal))
+	second, _ := os.ReadFile("opencode.json")
+
+	require.Equal(t, string(first), string(second), "second Save must not change the file")
 }
 
 func TestSaveCreatesParentDirectories(t *testing.T) {
