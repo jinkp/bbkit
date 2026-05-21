@@ -63,6 +63,7 @@ func setSecretsConfigHome(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("APPDATA", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
 	require.NoError(t, configpkg.Save(&configpkg.Config{Username: "testuser"}))
 	return filepath.Join(home, "bbkit", credentialsFileName)
 }

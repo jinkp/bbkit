@@ -87,5 +87,6 @@ func setConfigHome(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("APPDATA", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
 	return filepath.Join(home, appDirName, configFileName)
 }
