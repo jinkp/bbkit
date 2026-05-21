@@ -336,3 +336,212 @@ func handleListPipelines(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo
 	}
 	return toJSON(pipelines)
 }
+
+// --- PR write tool helpers ---
+
+// splitReviewers splits a comma-separated reviewer string into a slice of trimmed,
+// non-empty strings. Returns nil when the input is empty or whitespace-only.
+func splitReviewers(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// --- PR write tool handlers ---
+
+func handleCreatePR(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	ws, repo, err := resolveWorkspaceRepo(req)
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	title := req.GetString("title", "")
+	source := req.GetString("source", "")
+	destination := req.GetString("destination", "")
+	if title == "" {
+		return toolErr("title is required"), nil
+	}
+	if source == "" {
+		return toolErr("source is required"), nil
+	}
+	if destination == "" {
+		return toolErr("destination is required"), nil
+	}
+
+	description := req.GetString("description", "")
+	reviewersRaw := req.GetString("reviewers", "")
+	closeSourceBranch := req.GetBool("close_source_branch", false)
+
+	client, err := createClient()
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	payload := services.PrCreatePayload{
+		Title:             title,
+		Description:       description,
+		SourceBranch:      source,
+		DestinationBranch: destination,
+		Reviewers:         splitReviewers(reviewersRaw),
+		CloseSourceBranch: closeSourceBranch,
+	}
+
+	pr, err := services.Create(ctx, client, ws, repo, payload)
+	if err != nil {
+		return toolErr(fmt.Sprintf("create pull request: %v", err)), nil
+	}
+	return toJSON(pr)
+}
+
+func handleCommentPR(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	ws, repo, err := resolveWorkspaceRepo(req)
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	prID := req.GetInt("pr_id", 0)
+	if prID <= 0 {
+		return toolErr("pr_id must be a positive integer"), nil
+	}
+	message := req.GetString("message", "")
+	if message == "" {
+		return toolErr("message is required"), nil
+	}
+
+	client, err := createClient()
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	if err := services.AddComment(ctx, client, ws, repo, prID, message); err != nil {
+		return toolErr(fmt.Sprintf("comment on pull request: %v", err)), nil
+	}
+	return mcpgo.NewToolResultText(fmt.Sprintf("Comment posted on PR #%d", prID)), nil
+}
+
+func handleUpdatePR(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	ws, repo, err := resolveWorkspaceRepo(req)
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	prID := req.GetInt("pr_id", 0)
+	if prID <= 0 {
+		return toolErr("pr_id must be a positive integer"), nil
+	}
+
+	title := req.GetString("title", "")
+	description := req.GetString("description", "")
+	destination := req.GetString("destination", "")
+	reviewersRaw := req.GetString("reviewers", "")
+
+	if title == "" && description == "" && destination == "" && reviewersRaw == "" {
+		return toolErr("bb_update_pr requires at least one of: title, description, destination, reviewers"), nil
+	}
+
+	client, err := createClient()
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	payload := services.PrUpdatePayload{
+		Title:             title,
+		Description:       description,
+		DestinationBranch: destination,
+		Reviewers:         splitReviewers(reviewersRaw), // nil when reviewersRaw is empty
+	}
+
+	pr, err := services.Update(ctx, client, ws, repo, prID, payload)
+	if err != nil {
+		return toolErr(fmt.Sprintf("update pull request: %v", err)), nil
+	}
+	return toJSON(pr)
+}
+
+func handleApprovePR(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	ws, repo, err := resolveWorkspaceRepo(req)
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	prID := req.GetInt("pr_id", 0)
+	if prID <= 0 {
+		return toolErr("pr_id must be a positive integer"), nil
+	}
+
+	client, err := createClient()
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	if err := services.Approve(ctx, client, ws, repo, prID); err != nil {
+		return toolErr(fmt.Sprintf("approve pull request: %v", err)), nil
+	}
+	return mcpgo.NewToolResultText(fmt.Sprintf("PR #%d approved", prID)), nil
+}
+
+func handleCreatePRTask(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	ws, repo, err := resolveWorkspaceRepo(req)
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	prID := req.GetInt("pr_id", 0)
+	if prID <= 0 {
+		return toolErr("pr_id must be a positive integer"), nil
+	}
+	message := req.GetString("message", "")
+	if message == "" {
+		return toolErr("message is required"), nil
+	}
+
+	client, err := createClient()
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	task, err := services.CreateTask(ctx, client, ws, repo, prID, message)
+	if err != nil {
+		return toolErr(fmt.Sprintf("create PR task: %v", err)), nil
+	}
+	return toJSON(task)
+}
+
+func handleResolvePRTask(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	ws, repo, err := resolveWorkspaceRepo(req)
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	prID := req.GetInt("pr_id", 0)
+	if prID <= 0 {
+		return toolErr("pr_id must be a positive integer"), nil
+	}
+	taskID := req.GetInt("task_id", 0)
+	if taskID <= 0 {
+		return toolErr("task_id must be a positive integer"), nil
+	}
+
+	client, err := createClient()
+	if err != nil {
+		return toolErr(err.Error()), nil
+	}
+
+	if err := services.ResolveTask(ctx, client, ws, repo, prID, taskID); err != nil {
+		return toolErr(fmt.Sprintf("resolve PR task: %v", err)), nil
+	}
+	return mcpgo.NewToolResultText(fmt.Sprintf("Task #%d on PR #%d resolved", taskID, prID)), nil
+}
